@@ -16,6 +16,8 @@ def err(text, status):
     sys.stderr.write(f'{sys.argv[0]}: {text}!\n')
     sys.exit(status)
 
+
+
 def get_credentials():
     # get input from terminal
     username = input('Enter your username: ')
@@ -37,9 +39,11 @@ def add_user(username, password, pwdb, pwdb_path):
     if username in pwdb:
         err(f'Username already exists [{username}]', 2)
     else:
-        pwdb[username] = pwhash(password)
+        salt = get_salt(pwdb)
+        pwdb[username] = {'hash': pwhash(password, salt),
+                          'salt': salt}
         write_pwdb(pwdb, pwdb_path)
-
+        
 def read_pwdb(pwdb_path):
     # try to read from the database
     # if anything happens, report the error!
@@ -58,14 +62,22 @@ def write_pwdb(pwdb, pwdb_path):
     with open(pwdb_path, 'wt') as pwdb_file:
         json.dump(pwdb, pwdb_file)
 
-def pwhash(pass_text):
+def pwhash(pass_text, user_salt):
     # simple additive hash -> very insecure!
     hash_ = 0
+    pass_text += user_salt
     for idx, char in enumerate(pass_text):
         # use idx as a multiplier, so that shuffling the characters returns a
         # different hash
         hash_ += (idx+1)*ord(char)
     return hash_
+
+def get_salt(pwdb):
+    salt = ''.join(random.choices(string.ascii_letters, k=5))
+    # make sure the salt is unique
+    while any(salt == user['salt'] for user in pwdb.values()):
+        salt = ''.join(random.choices(string.ascii_letters, k=5))
+    return salt
 
 if __name__ == '__main__':
     # ask for credentials
